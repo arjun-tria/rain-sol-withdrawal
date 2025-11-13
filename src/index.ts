@@ -14,16 +14,6 @@ import { executeWithdrawal } from "./withdraw";
 // Load environment variables
 dotenv.config();
 
-type FetchV2SignatureOpts = {
-  userId: string;
-  token: string;
-  amount: string;
-  adminAddress: string;
-  recipientAddress: string;
-  chainId: string;
-  signer: any;
-};
-
 function getProgram(programAddress: string, signer: Keypair): Program<Main> {
   const rpcUrl = process.env.SOLANA_RPC_URL
   if (!rpcUrl) {
@@ -50,15 +40,7 @@ function getProgram(programAddress: string, signer: Keypair): Program<Main> {
   return new Program<Main>(idl, provider)
 }
 
-const main = async ({
-  userId,
-  token,
-  amount,
-  adminAddress,
-  recipientAddress,
-  chainId,
-  signer,
-}: FetchV2SignatureOpts) => {
+const main = async ({ signer }: { signer: any }) => {
   // replace the below response with the actual response from /withdrawal-signature api below
   const response = {
     expiresAt: "2025-11-13T20:39:31.000Z",
