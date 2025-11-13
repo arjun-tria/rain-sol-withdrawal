@@ -1,6 +1,6 @@
 # Rain Solana Withdrawal
 
-A Solana program client for executing withdrawals from the Rain protocol.
+A Solana program client for executing withdrawals from the Rain collateral.
 
 ## Entrypoint
 
