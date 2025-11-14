@@ -34,71 +34,76 @@ async function submitCollateralSignature(
     program: Program<Main>,
     collateralAddress: PublicKey
 ) {
-    // Generate the collateral admin signature
-    const collateralMessageSalt: number[] = Array.from(randomBytes(32)).map(Number)
-    const collateralMessage = Collateral.getWithdrawMessage(
-        collateralAddress,
-        sender.publicKey,
-        recipientAddress,
-        mintAddress,
-        withdrawRequest,
-        collateralMessageSalt,
-        adminFundsNonce
-    )
-
-    const collateralSignature = nacl.sign.detached(Uint8Array.from(collateralMessage), sender.secretKey)
-
-    const collateralSignatureAddress = Collateral.generateWithdrawCollateralPDA(
-        collateralAddress,
-        sender.publicKey,
-        recipientAddress,
-        mintAddress,
-        withdrawRequest,
-        adminFundsNonce,
-        program.programId
-    );
-
-    const collateralSignatureAccount = await program.account.collateralAdminSignatures.fetchNullable(collateralSignatureAddress);
-    if (!collateralSignatureAccount || collateralSignatureAccount.signers.every(signer => !signer.equals(sender.publicKey))) {
-        // Create the instruction to submit the admin signature to the signatures account 
-        const signatureVereficationInstruction = Ed25519ExtendedProgram.createSignatureVerificationInstruction([{
-            signer: sender.publicKey,
-            signature: Buffer.from(collateralSignature),
-            message: collateralMessage,
-        }]);
-
-        // Submit the admin signature to the signatures account 
-        const transaction = await program.methods.submitSignatures({
-            salts: [collateralMessageSalt],
-            targetNonce: adminFundsNonce,
-            signatureSubmissionType: {
-                withdrawCollateralAsset: {
-                    sender: sender.publicKey,
-                    receiver: recipientAddress,
-                    asset: mintAddress,
-                    withdrawRequest,
-                }
-            },
-        }).accounts({
-            collateral: collateralAddress,
-            collateralAdminSignatures: collateralSignatureAddress,
-            rentPayer: sender.publicKey,
-        }).preInstructions([
-            signatureVereficationInstruction
-        ]).transaction();
-
-        // Send and confirm the transaction
-        const submitSignaturesHash = await sendAndConfirmTransaction(
-            program.provider.connection,
-            transaction,
-            [sender],
-            { commitment: 'confirmed' }
+    try {
+        // Generate the collateral admin signature
+        const collateralMessageSalt: number[] = Array.from(randomBytes(32)).map(Number)
+        const collateralMessage = Collateral.getWithdrawMessage(
+            collateralAddress,
+            sender.publicKey,
+            recipientAddress,
+            mintAddress,
+            withdrawRequest,
+            collateralMessageSalt,
+            adminFundsNonce
+        )
+    
+        const collateralSignature = nacl.sign.detached(Uint8Array.from(collateralMessage), sender.secretKey)
+    
+        const collateralSignatureAddress = Collateral.generateWithdrawCollateralPDA(
+            collateralAddress,
+            sender.publicKey,
+            recipientAddress,
+            mintAddress,
+            withdrawRequest,
+            adminFundsNonce,
+            program.programId
         );
-
-        console.log("Collateral admin signature submitted");
-        console.log(submitSignaturesHash);
+    
+        const collateralSignatureAccount = await program.account.collateralAdminSignatures.fetchNullable(collateralSignatureAddress);
+        if (!collateralSignatureAccount || collateralSignatureAccount.signers.every(signer => !signer.equals(sender.publicKey))) {
+            // Create the instruction to submit the admin signature to the signatures account 
+            const signatureVereficationInstruction = Ed25519ExtendedProgram.createSignatureVerificationInstruction([{
+                signer: sender.publicKey,
+                signature: Buffer.from(collateralSignature),
+                message: collateralMessage,
+            }]);
+    
+            // Submit the admin signature to the signatures account 
+            const transaction = await program.methods.submitSignatures({
+                salts: [collateralMessageSalt],
+                targetNonce: adminFundsNonce,
+                signatureSubmissionType: {
+                    withdrawCollateralAsset: {
+                        sender: sender.publicKey,
+                        receiver: recipientAddress,
+                        asset: mintAddress,
+                        withdrawRequest,
+                    }
+                },
+            }).accounts({
+                collateral: collateralAddress,
+                collateralAdminSignatures: collateralSignatureAddress,
+                rentPayer: sender.publicKey,
+            }).preInstructions([
+                signatureVereficationInstruction
+            ]).transaction();
+    
+            // Send and confirm the transaction
+            const submitSignaturesHash = await sendAndConfirmTransaction(
+                program.provider.connection,
+                transaction,
+                [sender],
+                { commitment: 'confirmed' }
+            );
+    
+            console.log("Collateral admin signature submitted");
+            console.log(submitSignaturesHash);
+        }
+        return collateralSignatureAddress;
+    } catch (error) {
+        console.error("Error submitting collateral signature", error);
+        throw error;
     }
-    return collateralSignatureAddress;
 }
 
 export async function executeWithdrawal(
